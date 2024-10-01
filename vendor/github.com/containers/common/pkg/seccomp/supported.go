@@ -1,4 +1,4 @@
-// +build linux,seccomp
+//go:build linux && seccomp
 
 package seccomp
 

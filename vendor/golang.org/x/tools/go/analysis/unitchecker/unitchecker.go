@@ -49,6 +49,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
+	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/facts"
 	"golang.org/x/tools/internal/versions"
 )
@@ -65,6 +66,8 @@ type Config struct {
 	GoFiles                   []string
 	NonGoFiles                []string
 	IgnoredFiles              []string
+	ModulePath                string            // module path
+	ModuleVersion             string            // module version
 	ImportMap                 map[string]string // maps import path to package path
 	PackageFile               map[string]string // maps package path to file of type information
 	Standard                  map[string]bool   // package belongs to standard library
@@ -358,6 +361,12 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				factFilter[reflect.TypeOf(f)] = true
 			}
 
+			module := &analysis.Module{
+				Path:      cfg.ModulePath,
+				Version:   cfg.ModuleVersion,
+				GoVersion: cfg.GoVersion,
+			}
+
 			pass := &analysis.Pass{
 				Analyzer:          a,
 				Fset:              fset,
@@ -376,7 +385,9 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				ImportPackageFact: facts.ImportPackageFact,
 				ExportPackageFact: facts.ExportPackageFact,
 				AllPackageFacts:   func() []analysis.PackageFact { return facts.AllPackageFacts(factFilter) },
+				Module:            module,
 			}
+			pass.ReadFile = analysisinternal.MakeReadFile(pass)
 
 			t0 := time.Now()
 			act.result, act.err = a.Run(pass)
